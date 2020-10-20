@@ -195,6 +195,36 @@ void AGrid::FillEmptySpace()
 			//fallingTiles[i - 1] = FMath::Abs(fallingTiles[i - 1]-Grid_Rows);
 
 		}
+	}//if selection happend in column
+	else if (selectedTileDifference == Grid_Rows)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 05"));
+		destroyingTileIDs.Sort();
+		int32 maxId = destroyingTileIDs.Last(),minId= destroyingTileIDs[0];
+		if(fallingTiles.Num()>0)
+			fallingTiles.Empty();
+		UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 05.1 last = %d , min = %d"),maxId, minId);
+		for (int i = 1; i < FMath::Abs(((maxId / Grid_Rows) - Grid_Rows)); i++)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 06"));
+			fallingTiles.Add(maxId + (Grid_Rows * i));
+		}
+
+		for (int i=1; i < FMath::Abs(((maxId / Grid_Rows)-Grid_Rows)); i++)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 07"));
+			int32 fallingTilNewID = FMath::Abs(fallingTiles[i - 1] - (destroyingTileIDs.Num()*Grid_Rows));
+			ATile* temp;
+			if (TilesInGrid[fallingTiles[i - 1]])
+			{
+				UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 08"));
+				TilesInGrid[fallingTiles[i - 1]]->SetActorLocation(GridIndexToLocation(fallingTilNewID));
+				TilesInGrid[fallingTiles[i - 1]]->tileIndexInGrid = fallingTilNewID;
+				temp = TilesInGrid[fallingTiles[i - 1]];
+				TilesInGrid[fallingTiles[i - 1]] = nullptr;
+				TilesInGrid[fallingTilNewID] = temp;
+			}
+		}
 	}
 
 	selectedTileDifference = 0;
