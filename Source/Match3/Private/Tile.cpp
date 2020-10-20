@@ -4,6 +4,8 @@
 #include "Tile.h"	
 #include "PaperSpriteComponent.h"
 #include "Grid.h"
+#include "Components/PrimitiveComponent.h"
+#include "Match3_PC.h"
 #include "Kismet/GameplayStatics.h"
 
 ATile::ATile()
@@ -21,11 +23,8 @@ void ATile::BeginPlay()
 {
 	Super::BeginPlay();
 	grid = Cast<AGrid>(GetOwner());
-	//OnInputTouchBegin.AddUniqueDynamic(this, &ATile::TileClicked);
-	OnInputTouchEnter.AddUniqueDynamic(this, &ATile::TileHover);
-	OnInputTouchLeave.AddUniqueDynamic(this, &ATile::TileClicked);
-	OnInputTouchEnd.AddUniqueDynamic(this,&ATile::resetSelection);
-	//OnInputTouchEnd.AddUniqueDynamic(this, &ATile::TileClicked);
+	OnClicked.AddDynamic(this, &ATile::TileClicked);
+	Cast<UPaperSpriteComponent>(RootComponent)->OnBeginCursorOver.AddDynamic(this, &ATile::TileHover);
 }
 
 void ATile::SetTileSprite(UPaperSprite* tileSprite)
@@ -33,22 +32,23 @@ void ATile::SetTileSprite(UPaperSprite* tileSprite)
 	GetRenderComponent()->SetSprite(tileSprite);
 }
 
-void ATile::TileClicked(ETouchIndex::Type index, AActor* actor)
+void ATile::TileClicked(AActor* TouchedActor, FKey ButtonPressed)
 {
 	UE_LOG(LogTemp,Warning,TEXT("gggg tile clicked"));
+	grid->OnTileClicked(this);
 
 }
 
-void ATile::TileHover(ETouchIndex::Type index, AActor* actor)
+void ATile::TileHover(class UPrimitiveComponent* OtherComp)//ETouchIndex::Type index, AActor* actor)
 {
-	UE_LOG(LogTemp, Warning, TEXT("gggg tile hover"));
-
+	AMatch3_PC* PC = Cast<AMatch3_PC>(UGameplayStatics::GetPlayerController(this, 0));
+	if(PC->IsInputKeyDown(EKeys::LeftMouseButton))
 	if (!grid->stopTileSelection)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("gggg tile hover"));
 		grid->OnTileClicked(this);
 	}
 }
-
 
 void ATile::resetSelection(ETouchIndex::Type index, AActor* actor)
 {

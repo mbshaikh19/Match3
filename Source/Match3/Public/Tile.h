@@ -35,10 +35,10 @@ public:
 	virtual void BeginPlay() override;
 	
 	UFUNCTION()
-	void TileClicked(ETouchIndex::Type index, AActor* actor);
+	void TileClicked(AActor* TouchedActor, FKey ButtonPressed);
 
 	UFUNCTION()
-	void TileHover(ETouchIndex::Type index, AActor* actor);
+	void TileHover(class UPrimitiveComponent* OtherComp);
 
 	void resetSelection(ETouchIndex::Type index, AActor* actor);
 

@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "PaperSprite.h"
 #include "Tile.h"
+#include "Match3_PC.h"
 #include "Grid.generated.h"
 
 //class ATile;
@@ -58,6 +59,17 @@ public:
 
 	bool stopTileSelection = false;
 
+	UPROPERTY()
+	AMatch3_PC* playerController;
+
+	int32 minimumSelectionLength=3;
+
+	TEnumAsByte<TileType> selectedTileType;
+
+	TArray<int32> destroyingTileIDs;
+
+	void FillEmptySpace();
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
@@ -70,10 +82,15 @@ public:
 
 	int32 GetRandomTile();
 	int32 GetGridIndex(int32 pivot,int32 x,int32 y);
-	ATile* SpawnTile(int32 tileToSpawnIndex,FVector spawnLocation);
+	ATile* SpawnTile(int32 tileToSpawnIndex,FVector spawnLocation, int32 tileGridIndex);
 
 	bool checkAdjacentTile(int32 selectedTileIndex);
 
 	UFUNCTION()
 	void OnTileClicked(ATile* selectedTile);
+
+	UFUNCTION()
+	void MouseBtnReleased();
+
+	FVector GridIndexToLocation(int32 index);
 };
