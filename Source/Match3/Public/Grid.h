@@ -30,7 +30,7 @@ class MATCH3_API AGrid : public AActor
 	GENERATED_BODY()
 	
 public:	
-	// Sets default values for this actor's properties
+
 	AGrid(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
@@ -64,19 +64,29 @@ public:
 
 	int32 minimumSelectionLength=3;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Line")
+	TSubclassOf<class APaperSpriteActor> lineSpriteClass;
+
 	TEnumAsByte<TileType> selectedTileType;
 
 	TArray<int32> destroyingTileIDs;
 
-	void FillEmptySpace();
+	TArray<int32> respawnIds;
+
+	UPROPERTY(BlueprintReadWrite,Category="Tile Line")
+	UPaperSprite* TileSprite;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Tile Line")
+	UParticleSystemComponent* Line_PS;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tile Line")
+		UParticleSystem* lineParticleTemplate;
 
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
 
 	void CreateGrid();
 
@@ -93,4 +103,13 @@ public:
 	void MouseBtnReleased();
 
 	FVector GridIndexToLocation(int32 index);
+
+	void FillEmptySpace();
+
+	void respawnTiles(TArray<int32> respawnIndex);
+
+	void DrawLineBetweenTiles(FVector startPoint, FVector endPoint);
+
+	void HideLine();
+
 };

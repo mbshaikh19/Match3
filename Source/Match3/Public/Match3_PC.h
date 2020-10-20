@@ -10,6 +10,7 @@
 /**
  * 
  */
+class UHUDWidget;
 class AGrid;
 UCLASS()
 class MATCH3_API AMatch3_PC : public APlayerController
@@ -19,10 +20,21 @@ class MATCH3_API AMatch3_PC : public APlayerController
 public:
 	AGrid* grid;
 	class UInputComponent* InputComponent=nullptr;
+
+	UPROPERTY()
+	UHUDWidget* HUD_wid;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite,Category="HUD widget")
+	TSubclassOf<class UHUDWidget> HUD_wid_class;
+
+	int32 scoreMultiple = 2;
 public:
 	virtual void BeginPlay() override;
 	virtual void Tick(float deltaTime) override;
 	AMatch3_PC(const FObjectInitializer& ObjectInitializer);
 	void MouseLBReleased();
 	void SetGridRef(AGrid* gridRef);
+
+	UFUNCTION()
+	void SetScore(int32 tileCount);
 };

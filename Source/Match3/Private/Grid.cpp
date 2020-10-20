@@ -3,6 +3,10 @@
 
 #include "Grid.h"
 #include "Kismet/GameplayStatics.h"
+#include "SceneManagement.h"
+#include "PaperSpriteActor.h"
+#include "PaperSpriteComponent.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "Components/SceneComponent.h"
 //#include "Tile.h"
 
@@ -10,10 +14,13 @@
 AGrid::AGrid(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 	RootComponent = SceneComponent;
 
+	Line_PS = CreateDefaultSubobject<UParticleSystemComponent>(TEXT("Line_PS"));
+	Line_PS->SetupAttachment(RootComponent);
+	Line_PS->bAutoActivate = false;
 }
 
 // Called when the game starts or when spawned
@@ -29,13 +36,8 @@ void AGrid::BeginPlay()
 	TilesInGrid.Empty(Grid_Columns*Grid_Rows);
 	TilesInGrid.AddZeroed(TilesInGrid.Max());
 	CreateGrid();
-}
-
-// Called every frame
-void AGrid::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
+	Line_PS = UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), lineParticleTemplate, GetActorLocation(), FRotator::ZeroRotator, true);
+	Line_PS->SetVisibility(false);
 }
 
 void AGrid::CreateGrid()
@@ -49,12 +51,9 @@ void AGrid::CreateGrid()
 		for (int32 row = 0; row < Grid_Rows; row++)
 		{
 			gridIndex = GetGridIndex(0,col,row);
-			//tileSpawnLocation = FVector(-(Grid_Columns/2)*Tile_Width+(Tile_Width/2),0.0f, -(Grid_Rows / 2) * Tile_Height + (Tile_Height / 2));
-			//tileSpawnLocation += FVector(Tile_Width *(float(gridIndex %Grid_Columns)),0.0f, Tile_Height * (float(gridIndex / Grid_Rows)));
-			//tileSpawnLocation += gridLocation;
 			tileSpawnLocation = GridIndexToLocation(gridIndex);
 			UE_LOG(LogTemp,Warning,TEXT("ggg Grid index = %d"),gridIndex)
-			/*TilesInGrid[gridIndex] = */SpawnTile(GetRandomTile(), tileSpawnLocation,gridIndex);			
+			SpawnTile(GetRandomTile(), tileSpawnLocation,gridIndex);			
 		}
 	}
 }
@@ -86,7 +85,6 @@ ATile* AGrid::SpawnTile(int32 tileToSpawnIndex, FVector spawnLocation,int32 tile
 	NewTile->SetTileSprite(TileArray[tileToSpawnIndex].TileSprite);
 	NewTile->tileType = TileArray[tileToSpawnIndex].tileType;
 	NewTile->tileIndexInGrid = tileGridIndex;
-	//NewTile->GetRenderComponent()->SetMobility(EComponentMobility::Movable);
 	TilesInGrid[tileGridIndex] = NewTile;
 	return NewTile;		
 }
@@ -106,12 +104,14 @@ void AGrid::OnTileClicked(ATile* selectedTile)
 		{
 			UE_LOG(LogTemp,Warning,TEXT("gggg selected adjacent tile"))
 			selectedTiles.AddUnique(selectedTile);
+			
+			DrawLineBetweenTiles(selectedTiles[0]->GetActorLocation()+FVector(0.0f,2.0f,0.0f),selectedTiles.Last()->GetActorLocation() + FVector(0.0f, 2.0f, 0.0f));
 		}
 		else
 		{
 			stopTileSelection = true;
 			selectedTiles.Empty();
-			//selectedTileDifference = 0;
+			HideLine();
 		}
 	}
 
@@ -138,9 +138,15 @@ void AGrid::MouseBtnReleased()
 {
 	if (selectedTiles.Num() >= minimumSelectionLength)
 	{
+		playerController->SetScore(selectedTiles.Num());
 		for (ATile* tileToDestroy : selectedTiles)
 		{
 			destroyingTileIDs.AddUnique(tileToDestroy->tileIndexInGrid);
+
+			//adding just to be extra sure for respawn ids of tiles
+			respawnIds.Add(tileToDestroy->tileIndexInGrid);
+			TilesInGrid[tileToDestroy->tileIndexInGrid] = nullptr;
+			
 			tileToDestroy->Destroy();
 		}
 
@@ -149,11 +155,13 @@ void AGrid::MouseBtnReleased()
 		selectedTiles.Empty();
 		selectedTileDifference = 0;
 		destroyingTileIDs.Empty();
+		HideLine();
 	}
 	else
 	{
 		stopTileSelection = false;
 		selectedTiles.Empty();
+		HideLine();
 		//selectedTileDifference = 0;
 	}
 }
@@ -173,7 +181,6 @@ void AGrid::FillEmptySpace()
 			UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 02.8 upperTiles=%d   , id[0]=%d"), upperTiles, destroyingTileIDs[0]);
 			for (int i = 1; i < upperTiles; i++)
 			{
-				//fallingTiles[fallingTiles.Num() + (i - 1)] = destroyingTileIDs[0] + (Grid_Rows * i);
 				fallingTiles.Add(destroyingTileIDs[j] + (Grid_Rows * i));
 			}
 		}
@@ -188,12 +195,10 @@ void AGrid::FillEmptySpace()
 				TilesInGrid[fallingTiles[i - 1]]->SetActorLocation(GridIndexToLocation(fallingTilNewID));
 				TilesInGrid[fallingTiles[i - 1]]->tileIndexInGrid = fallingTilNewID;
 				temp=TilesInGrid[fallingTiles[i - 1]];
+				respawnIds.Add(fallingTiles[i - 1]);
 				TilesInGrid[fallingTiles[i - 1]] = nullptr;
 				TilesInGrid[fallingTilNewID] = temp;
 			}
-			//UE_LOG(LogTemp,Warning,TEXT("ggg fill empty space called step 03 fallingTileNewID= %d  Tiles in grid = %d"),fallingTilNewID, TilesInGrid[fallingTiles[i - 1]]->tileIndexInGrid);
-			//fallingTiles[i - 1] = FMath::Abs(fallingTiles[i - 1]-Grid_Rows);
-
 		}
 	}//if selection happend in column
 	else if (selectedTileDifference == Grid_Rows)
@@ -204,6 +209,7 @@ void AGrid::FillEmptySpace()
 		if(fallingTiles.Num()>0)
 			fallingTiles.Empty();
 		UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 05.1 last = %d , min = %d"),maxId, minId);
+		//make falling tile list
 		for (int i = 1; i < FMath::Abs(((maxId / Grid_Rows) - Grid_Rows)); i++)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 06"));
@@ -221,12 +227,25 @@ void AGrid::FillEmptySpace()
 				TilesInGrid[fallingTiles[i - 1]]->SetActorLocation(GridIndexToLocation(fallingTilNewID));
 				TilesInGrid[fallingTiles[i - 1]]->tileIndexInGrid = fallingTilNewID;
 				temp = TilesInGrid[fallingTiles[i - 1]];
+				respawnIds.Add(fallingTiles[i - 1]);
 				TilesInGrid[fallingTiles[i - 1]] = nullptr;
 				TilesInGrid[fallingTilNewID] = temp;
 			}
 		}
 	}
-
+	//UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 09"));
+	if (fallingTiles.Num() == 0)
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("ggg fill empty space called step 10 = %d"), destroyingTileIDs[0]);
+		for (int32 tempId : destroyingTileIDs)
+		{
+			TilesInGrid[tempId] = nullptr;
+		}
+		respawnTiles(destroyingTileIDs);
+	}
+	else {
+		respawnTiles(respawnIds);
+	}
 	selectedTileDifference = 0;
 }
 
@@ -238,4 +257,41 @@ FVector AGrid::GridIndexToLocation(int32 index)
 	tileSpawnLocation += FVector(Tile_Width * (float(index % Grid_Columns)), 0.0f, Tile_Height * (float(index / Grid_Rows)));
 	tileSpawnLocation += gridLocation;
 	return tileSpawnLocation;
+}
+
+void AGrid::respawnTiles(TArray<int32> respawnIndex)
+{
+	for (int32 emptyId : respawnIndex)
+	{
+		if (TilesInGrid[emptyId] == nullptr)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ggg respawn id = %d"), emptyId);
+			SpawnTile(GetRandomTile(), GridIndexToLocation(emptyId), emptyId);
+		}
+
+	}
+
+	if(respawnIds.Num()>0)
+	respawnIds.Empty();
+}
+
+void AGrid::DrawLineBetweenTiles(const FVector startPoint,const FVector endPoint)
+{	
+	Line_PS->SetVisibility(true);
+	Line_PS->Template = lineParticleTemplate;
+	//if (Line_PS->IsValidLowLevel())
+	//{
+		Line_PS->ActivateSystem();
+		Line_PS->SetBeamSourcePoint(0, startPoint, 0);
+		Line_PS->SetBeamTargetPoint(0, endPoint, 0);
+	//}
+		UE_LOG(LogTemp,Warning,TEXT("gggg start point = %s , end point = %s "),*startPoint.ToString(),*endPoint.ToString());
+}
+
+void AGrid::HideLine()
+{
+	Line_PS->SetVisibility(false);
+		Line_PS->DeactivateSystem();
+		Line_PS->SetBeamSourcePoint(0, FVector::ZeroVector, 0);
+		Line_PS->SetBeamTargetPoint(0, FVector::ZeroVector, 0);
 }
